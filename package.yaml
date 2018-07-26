@@ -35,6 +35,12 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -Odph
+    - -fno-liberate-case 
+    - -funfolding-use-threshold1000 
+    - -funfolding-keeness-factor1000 
+    # - -fllvm 
+    # - -optlo-O3
     dependencies:
     - subplot
     - gloss-raster
