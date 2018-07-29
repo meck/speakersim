@@ -26,7 +26,7 @@ data World = World { evnt :: Env
 
 
 initalWorld = World
-  { evnt     = Env 20 0.5 50
+  { evnt     = Env 20 0.5 100
   , spkrs    = initalSpkrs
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
@@ -38,14 +38,14 @@ makePict w = return $ uncurry makePicture (viewSize w) 1 1 (pointColor w) -- TOD
 pointColor :: World -> Point -> Color -- TODO Clean up add offset
 pointColor (World e sp vs vo) p = dbToCol totDb
  where
-  p'    = (fst p * 20, snd p * 20)
+  p'    = (fst p * 40, snd p * 40)
   totDb = audioVecToSpl $ runReader (totalAtPoint p' sp) e
 
 dbToCol :: Double -> Color
 dbToCol x = rgb' scalR scalG 0
  where
-  sMax  = 130
-  sMin  = 70
+  sMax  = 100
+  sMin  = 65
   sMid  = sMin + (sMax - sMin) / 2
   scalR = realToFrac $ scal $ (x - sMin) / (sMax - sMin)
   scalG = realToFrac $ scal $ (x - sMin) / (sMid - sMin)
@@ -53,12 +53,17 @@ dbToCol x = rgb' scalR scalG 0
          | x > 1     = 1
          | otherwise = x
 
+-- initalSpkrs =
+--   [ idealSpeaker { pos = (0.75, -1), dly = 0.040, polInv = True }
+--   , idealSpeaker { pos = (0.25, -1) }
+--   , idealSpeaker { pos = (0, -1) }
+--   , idealSpeaker { pos = (-0.25, -1) }
+--   , idealSpeaker { pos = (-0.75, -1), dly = 0.040 }
+  -- ]
+
 initalSpkrs =
-  [ idealSpeaker { pos = (0.75, -1), dly = 0.040 }
-  , idealSpeaker { pos = (0.25, -1) }
-  , idealSpeaker { pos = (0, -1) }
-  , idealSpeaker { pos = (-0.25, -1) }
-  , idealSpeaker { pos = (-0.75, -1), dly = 0.040 }
+  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025, polInv = True }
+  , idealSpeaker { pos = (0.0, 0.8575), polInv = False }
   ]
 
 main :: IO ()
@@ -77,9 +82,10 @@ eventHandler e w = case e of
 
 idealSpeaker :: Speaker
 idealSpeaker = Speaker
-  { pos   = (0, 0)
-  , level = 0
-  , dly   = 0
-  , res   = return (1 :+ 0)
-  , size  = (1, 1)
+  { pos    = (0, 0)
+  , level  = 0
+  , dly    = 0
+  , polInv = False
+  , res    = return (1 :+ 0)
+  , size   = (1, 1)
   }

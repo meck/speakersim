@@ -47,6 +47,7 @@ data Env = Env { tmp :: Temp
 
 data Speaker = Speaker { pos :: Cord              -- The physical placment of a speaker in meters
                        , level :: Float           -- The level of the speaker in dB (<= 0)
+                       , polInv :: Bool           -- Polarity inverted
                        , dly :: Time              -- the processing delay in seconds
                        , res :: Freq -> AudioVect -- takes a Frequncy and returns Pa measured @ 1 meter
                        , size :: (Float,Float)    -- the Physical size of the speaker
@@ -66,7 +67,8 @@ respAtPoint p s = do
   let d = dist p $ pos s
       t = propTime e (realToFrac d) + dly s
       f = frq e
-  return $ attAtmos d e $ attDist d $ dlyPhase t f $ res s f
+      i = polInv s
+  return $ attAtmos d e $ attDist d $ phaseInv i $ dlyPhase t f $ res s f
 
 -- | utillity for converting a vector of Pa to SPL
 audioVecToSpl :: AudioVect -> Double
@@ -81,6 +83,9 @@ attAtmos d e x = x -- TODO Implement
 
 dlyPhase :: Time -> Freq -> AudioVect -> AudioVect
 dlyPhase t f x = cis (f * t * pi * 2) * x
+
+phaseInv :: Bool -> AudioVect -> AudioVect
+phaseInv p x = if p then cis pi * x else x
 
 speedOfSound :: Env -> Double
 speedOfSound _ = 343.0 -- TODO Make Atomosferic dependent
