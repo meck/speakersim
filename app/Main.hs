@@ -26,7 +26,7 @@ data World = World { evnt :: Env
 
 
 initalWorld = World
-  { evnt     = Env 20 0.5 100
+  { evnt     = Env (Atmos {tmp = 20, hum = 0.5, pres = 0}) 100.0
   , spkrs    = initalSpkrs
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
