@@ -26,7 +26,7 @@ data World = World { evnt :: Env
 
 
 initalWorld = World
-  { evnt     = Env (Atmos {tmp = 20, hum = 0.5, pres = 0}) 100.0
+  { evnt     = Env (Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 20000.0
   , spkrs    = initalSpkrs
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
@@ -53,18 +53,12 @@ dbToCol x = rgb' scalR scalG 0
          | x > 1     = 1
          | otherwise = x
 
--- initalSpkrs =
---   [ idealSpeaker { pos = (0.75, -1), dly = 0.040, polInv = True }
---   , idealSpeaker { pos = (0.25, -1) }
---   , idealSpeaker { pos = (0, -1) }
---   , idealSpeaker { pos = (-0.25, -1) }
---   , idealSpeaker { pos = (-0.75, -1), dly = 0.040 }
-  -- ]
+initalSpkrs = [idealSpeaker { pos = (0, 0) }, idealSpeaker { pos = (0.1, 0) }]
 
-initalSpkrs =
-  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025, polInv = True }
-  , idealSpeaker { pos = (0.0, 0.8575), polInv = False }
-  ]
+-- initalSpkrs =
+--   [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025, polInv = True }
+--   , idealSpeaker { pos = (0.0, 0.8575), polInv = False }
+--   ]
 
 main :: IO ()
 main = interactIO (InWindow "sub" initalWinSize initalWinPos)

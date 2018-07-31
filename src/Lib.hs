@@ -20,7 +20,6 @@ import           Data.Complex                   ( Complex(..)
                                                 )
 import           Control.Monad.Reader
 
-
 -- | An (x,y) cordinate in meters
 type Cord = (Float, Float)
 
@@ -74,26 +73,31 @@ attDist 0 x = x
 attDist d x = mkPolar (1 / d) 0 * x
 
 attAtmos :: Double -> Freq -> Atmos -> AudioVect -> AudioVect
-attAtmos d f a v = v -- TODO Implement   
+-- attAtmos d f a v = mkPolar alpha 0 * v
+attAtmos d f a v = v
  where
-  b =
-    8.686 * (f ** 2) * (1.84e-11 * ((pres a / pr) ** (-1)) * sqrt (tK / to) + y)
+  pt = pres a * exp ((-x) * alpha * d)
+  x  = 0.1151
+  alpha =
+    8.686 * (f ** 2) * (1.84e-11 * ((pres a / pr) ** (-1)) * sqrt (t / t0) + y)
   y =
-    (tK / to)
+    (t / t0)
       ** (-5 / 2)
-      *  (0.01275 * exp (-2239.1 / tK) * (frO * ((f ** 2) / frO) ** (-1)))
-  z   = 0.1068 * exp ((-3352) / tK) * ((frN + (f ** 2) / frN) ** (-1))
-  frO = (pres a / pr) * (24 + 4.04e4 * h * ((0.02 + h) / (0.391 + h)))     -- oxygen relaxation frequency
+      *  (0.01275 * exp (-2239.1 / t) * (((fsq / frO) + frO) ** (-1)))
+  z   = 0.1068 * exp (-3352 / t) * ((frN + (fsq / frN)) ** (-1))
+  frO = relP * (24 + ((4.04e4 * h * (0.02 + h)) / (0.391 + h)))     -- oxygen relaxation frequency
   frN =
-    (pres a / pr)
-      * (1 / sqrt (tK / to))
-      * (9 + 280 * h * exp (-4.170 * ((tK / to) ** (-(1 / 3)) - 1)))       -- nitrogen relaxation frequency
-  h    = hum a * (psat / pres a)                                           -- molar concentration of water vapor, as a percentage
-  psat = pres a * (10 ** (-6.8346 * ((to1 / tK) ** 1.261) + 4.6151))       -- saturation vapor pressure
-  tK   = tmp a - to                                                        -- Temp in Kelvin
-  to   = 293.15                                                            -- Kelvin ref temp
+    relP
+      * (1 / sqrt (t / t0))
+      * (9 + 280 * h * exp (-4.170 * (t / t0 ** (-1 / 3) - 1)))       -- nitrogen relaxation frequency
+  psat = pres a * 10 ** (-6.8346 * ((t01 / t) ** 1.261) + 4.6151)       -- saturation vapor pressure
+  h    = hum a * psat / pres a                                           -- molar concentration of water vapor, as a percentage
+  fsq  = f ** 2
+  relP = pres a / pr
+  t    = tmp a + t0                                                        -- Temp in Kelvin
+  t0   = 293.15                                                            -- Kelvin ref temp
   pr   = 101.325                                                           -- reference ambient atmospheric pressure: 101.325 kPa
-  to1  = to + 0.01                                                         -- triple-point isotherm temp
+  t01  = t0 + 0.01                                                         -- triple-point isotherm temp
 
 dlyPhase :: Time -> Freq -> AudioVect -> AudioVect
 dlyPhase t f x = cis (f * t * pi * 2) * x
@@ -101,8 +105,47 @@ dlyPhase t f x = cis (f * t * pi * 2) * x
 phaseInv :: Bool -> AudioVect -> AudioVect
 phaseInv p x = if p then cis pi * x else x
 
+-- Calulation taken from http://www.sengpielaudio.com/calculator-airpressure.htm
 speedOfSound :: Atmos -> Double
-speedOfSound _ = 343.0 -- TODO Make Atomosferic dependent
+speedOfSound (Atmos t rh p) = c1 + c2 - c3
+ where
+  e    = exp 1
+  p'   = p * 1000
+  tK   = t + 273.15
+  enh  = 3.141593e-8 * p' + 1.00062 + t ** 2 * 5.6e-7
+  psv1 = tK ** 2 * 1.2378847e-5 - 1.9121316e-2 * tK
+  psv2 = 33.93711047 - 6.3431645e3 / tK
+  psv  = e ** psv1 * e ** psv2
+  xw   = rh * enh * psv / p'
+  xc   = 400.0e-6
+  c1 =
+    0.603055
+      *  t
+      +  331.5024
+      -  t
+      ** 2
+      *  5.28e-4
+      +  (0.1495874 * t + 51.471935 - t ** 2 * 7.82e-4)
+      *  xw
+  c2 =
+    (-1.82e-7 + 3.73e-8 * t - t ** 2 * 2.93e-10)
+      * p'
+      + (-85.20931 - 0.228525 * t + t ** 2 * 5.91e-5)
+      * xc
+  c3 =
+    xw
+      ** 2
+      *  2.835149
+      -  p'
+      ** 2
+      *  2.15e-13
+      +  xc
+      ** 2
+      *  29.179762
+      +  4.86e-4
+      *  xw
+      *  p'
+      *  xc
 
 dist :: Cord -> Cord -> Float
 dist a b = sqrt $ ((fst b - fst a) ^ 2) + ((snd b - snd a) ^ 2)
