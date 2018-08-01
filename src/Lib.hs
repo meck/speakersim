@@ -45,7 +45,7 @@ data Speaker = Speaker { pos :: Cord              -- The physical placment of a 
                        , polInv :: Bool           -- Polarity inverted
                        , dly :: Time              -- the processing delay in seconds
                        , res :: Freq -> AudioVect -- takes a Frequncy and returns Pa measured @ 1 meter
-                       , size :: (Double,Double)  -- the Physical size of the speaker
+                       , size :: (Float,Float)    -- the Physical size of the speaker in meters
                        }
 
 -- | A Audio respone awaiting an enviorment
