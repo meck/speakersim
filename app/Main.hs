@@ -21,8 +21,8 @@ resol = 1
 
 pixPerMeter = 10
 
-initalDisplay :: Display
-initalDisplay = InWindow winName initalWinSize initalWinPos
+iDisplay :: Display
+iDisplay = InWindow winName initalWinSize initalWinPos
 
 data World = World { evnt :: Env
                    , spkrs :: [Speaker]
@@ -30,21 +30,14 @@ data World = World { evnt :: Env
                    , viewOrig :: (Float, Float) }
 
 
-initalWorld = World
+iWorld = World
   { evnt     = Env (Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 10000.0
-  , spkrs    = initalSpkrs
+  , spkrs    = iSpeak
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
   }
 
--- initalSpkrs = [idealSpeaker { pos = (0, 0) }, idealSpeaker { pos = (0.1, 0) }]
-
--- initalSpkrs =
---   [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025, polInv = True }
---   , idealSpeaker { pos = (0.0, 0.8575), polInv = False }
---   ]
-
-initalSpkrs =
+iSpeak =
   [idealSpeaker { pos = (0.0, 5.0) }, idealSpeaker { pos = (0.0, -5.0) }]
 
 makePict :: World -> IO Picture
@@ -54,7 +47,7 @@ makePict w =
     $ uncurry makePicture (viewSize w) resol resol (pointColor w)
     : (drawSpeaker <$> spkrs w)
 
-pointColor :: World -> Point -> Color -- TODO Clean up add offset
+pointColor :: World -> Point -> Color
 pointColor (World e sp vs vo) p = dbToCol totDb
  where
   p'    = bimap (pixPerMeter *) p
@@ -76,11 +69,10 @@ dbToCol x = rgb' scalR scalG 0
 main :: IO ()
 main = interactIO (InWindow "sub" initalWinSize initalWinPos)
                   black
-                  initalWorld
+                  iWorld
                   makePict
                   eventHandler
                   (const $ return ())
-
 
 eventHandler :: Event -> World -> IO World
 eventHandler e w = case e of
