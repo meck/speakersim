@@ -35,7 +35,7 @@ data World = World { evnt :: Env
 
 
 iWorld = World
-  { evnt     = Env (Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 1000.0
+  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 1000.0
   , spkrs    = iSpeak
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
