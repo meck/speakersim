@@ -1,6 +1,6 @@
-name:                subplot
+name:                speakersim
 version:             0.1.0.0
-github:              "meck/subplot"
+github:              "meck/speakersim"
 license:             BSD3
 author:              "Johan Eklund"
 maintainer:          "johan@meck.se"
@@ -17,7 +17,7 @@ extra-source-files:
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/meck/subplot#readme>
+description:         Please see the README on GitHub at <https://github.com/meck/speakersim#readme>
 
 dependencies:
 - base >= 4.7 && < 5
@@ -28,7 +28,7 @@ library:
     - mtl
 
 executables:
-  subplot-exe:
+  speakplot:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -42,13 +42,13 @@ executables:
     # - -fllvm 
     # - -optlo-O3
     dependencies:
-    - subplot
+    - speakersim
     - gloss-raster
     - gloss
     - mtl
 
 tests:
-  subplot-test:
+  speakersim-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -56,4 +56,4 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - subplot
+    - speakersim

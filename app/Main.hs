@@ -1,18 +1,15 @@
 module Main where
 
-import           Lib
+import           Speakersim
 import           Graphics.Gloss.Raster.Field
 import           Graphics.Gloss.Interface.IO.Interact
 import           Graphics.Gloss
 import           Control.Monad.Reader
 import           Data.Complex
 import           Data.IORef
-import           Graphics.Gloss.Data.ViewPort
-import qualified Graphics.Gloss.Data.Point.Arithmetic
-                                               as PA
 
 winName :: String
-winName = "Sub Plot"
+winName = "Speak Plot"
 
 initalWinSize :: (Int, Int)
 initalWinSize = (1000, 1000)

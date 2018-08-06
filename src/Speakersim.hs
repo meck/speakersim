@@ -1,4 +1,4 @@
-module Lib
+module Speakersim
   ( Cord
   , Time
   , Freq
