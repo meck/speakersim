@@ -45,8 +45,8 @@ iWorld = World
   }
 
 iSpeak =
-  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
-  , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
+  [ idealSpeaker { pos = (0.0, 50.0), dly = 0.0025 }
+  , idealSpeaker { pos = (0.0, 50 - 0.8575), polInv = True }
   ]
 
 makePict :: World -> IO Picture
