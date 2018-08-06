@@ -26,36 +26,38 @@ type Cord = (Float, Float)
 -- | Time in sec
 type Time = Double
 
--- | Freq in Hz
+-- | Frequency in Hz
 type Freq = Double
 
 -- | Vector with magnitude and phase
 type AudioVect = Complex Double
 
--- | The atmospheric properties
-data Atmos = Atmos { tmp :: Double  -- Temperature in C
-                   , hum :: Double  -- Humidity in %
-                   , pres :: Double -- abient atmospheric pressue in kPa
+-- | Atmospheric conditions
+data Atmos = Atmos { tmp :: Double  -- ^ Temperature in C
+                   , hum :: Double  -- ^ Humidity in %
+                   , pres :: Double -- ^ Ambient atmospheric pressue in kPa
                    }
 
+-- | The frequency of interest
+-- with optional atmospheric conditions
 data Env = Env (Maybe Atmos) Freq
 
-data Speaker = Speaker { pos :: Cord              -- The physical placment of a speaker in meters
-                       , level :: Double          -- The level of the speaker in dB (<= 0)
-                       , polInv :: Bool           -- Polarity inverted
-                       , dly :: Time              -- the processing delay in seconds
-                       , res :: Freq -> AudioVect -- takes a Frequncy and returns Pa measured @ 1 meter
-                       , size :: (Float,Float)    -- the Physical size of the speaker in meters
+data Speaker = Speaker { pos :: Cord              -- ^ Physical placment of a speaker in meters
+                       , level :: Double          -- ^ Level of the speaker in dB (<= 0)
+                       , polInv :: Bool           -- ^ Polarity
+                       , dly :: Time              -- ^ Processing delay in seconds
+                       , res :: Freq -> AudioVect -- ^ Pa measured @ 1 meter at f
+                       , size :: (Float,Float)    -- ^ Physical size of the speaker in meters
                        }
 
 -- | A Audio respone awaiting an enviorment
 type Resp = Reader Env AudioVect
 
--- | Total Response at point in the plane
+-- | Total Response at cord from multiple speakers
 totalAtPoint :: Cord -> [Speaker] -> Resp
 totalAtPoint c ss = foldr (liftA2 (+)) (pure (0 :+ 0)) $ respAtPoint c <$> ss
 
--- | Respone of one speaker at point in the plane
+-- | Respone of a single speaker at cord
 respAtPoint :: Cord -> Speaker -> Resp
 respAtPoint p s = do
   (Env a f) <- ask
@@ -64,7 +66,7 @@ respAtPoint p s = do
       i = polInv s
   return $ attAtmos d f a $ attDist d $ phaseInv i $ dlyPhase t f $ res s f
 
--- | utillity for converting a vector of Pa to SPL
+-- | Utillity for converting a vector of Pa to SPL
 audioVecToSpl :: AudioVect -> Double
 audioVecToSpl = spToSpl . magnitude
 
