@@ -32,6 +32,8 @@ ghc-options:
 
 library:
   source-dirs: src
+  dependencies:
+    - aeson
 
 executables:
   speakplot:
@@ -51,6 +53,9 @@ executables:
     - speakersim
     - gloss-raster
     - gloss
+    - aeson
+    - optparse-applicative
+    - bytestring
 
 tests:
   speakersim-test:

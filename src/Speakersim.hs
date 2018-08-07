@@ -1,3 +1,6 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module Speakersim
   ( Cord
   , Time
@@ -22,6 +25,8 @@ import           Data.Complex                   ( Complex(..)
                                                 , mkPolar
                                                 )
 import           Control.Monad.Reader
+import           Data.Aeson
+import           GHC.Generics
 
 -- | An (x,y) cordinate in meters
 type Cord = (Float, Float)
@@ -39,11 +44,17 @@ type AudioVect = Complex Double
 data Atmos = Atmos { tmp :: Double  -- ^ Temperature in C
                    , hum :: Double  -- ^ Humidity in %
                    , pres :: Double -- ^ Ambient atmospheric pressue in kPa
-                   }
+                   } deriving (Generic, Show)
+
+instance FromJSON Atmos
+instance ToJSON Atmos
 
 -- | The frequency of interest
 -- with optional atmospheric conditions
-data Env = Env (Maybe Atmos) Freq
+data Env = Env (Maybe Atmos) Freq deriving (Generic, Show)
+
+instance FromJSON Env
+instance ToJSON Env
 
 data Speaker = Speaker { pos :: Cord              -- ^ Physical placment of a speaker in meters
                        , level :: Double          -- ^ Level of the speaker in dB (<= 0)
@@ -52,6 +63,25 @@ data Speaker = Speaker { pos :: Cord              -- ^ Physical placment of a sp
                        , res :: Freq -> AudioVect -- ^ Pa measured @ 1 meter at f
                        , size :: (Float,Float)    -- ^ Physical size of the speaker in meters
                        }
+
+instance Show Speaker where
+  show s = unlines [ "pos: " <> show ( pos s),
+                     "level: " <> show (level s),
+                     "polInv: " <> show (polInv s),
+                     "size: " <> show ( size s),
+                     "dly: " <> show (dly s)]
+
+instance ToJSON Speaker where
+  toJSON s = object ["pos" .= pos s, "level" .= level s, "polInv" .= polInv s, "dly" .= dly s, "size" .= size s]
+
+instance FromJSON Speaker where
+  parseJSON = withObject "Speaker" $ \s -> Speaker
+    <$> s .: "pos"
+    <*> s .: "level"
+    <*> s .: "polInv"
+    <*> s .: "dly"
+    <*> pure (const (1:+0))
+    <*> s .: "size"
 
 -- | A Audio respone awaiting an enviorment
 type Resp = Reader Env AudioVect
@@ -122,7 +152,7 @@ phaseInv p x = if p then cis pi * x else x
 
 -- Calulation taken from http://www.sengpielaudio.com/calculator-airpressure.htm
 speedOfSound :: Maybe Atmos -> Double
-speedOfSound Nothing               = 343.0               -- Defualt value
+speedOfSound Nothing               = 343.0               -- Default value
 speedOfSound (Just (Atmos t rh p)) = c1 + c2 - c3
  where
   e    = exp 1
@@ -164,5 +194,3 @@ dist a b = sqrt $ ((fst b - fst a) ** 2) + ((snd b - snd a) ** 2)
 
 propTime :: Maybe Atmos -> Double -> Time
 propTime a d = d / speedOfSound a
-
-

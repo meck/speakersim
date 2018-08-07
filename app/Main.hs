@@ -1,13 +1,46 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RecordWildCards #-}
+
 module Main where
 
 import           Speakersim
 import           Graphics.Gloss.Raster.Field
 import           Graphics.Gloss.Interface.IO.Interact
--- import           Graphics.Gloss
 import           Control.Monad.Reader
 import           Data.Complex
-import           Data.IORef
 import           Data.Bifunctor
+import           Data.Aeson                     ( ToJSON
+                                                , FromJSON
+                                                , decode
+                                                )
+import           GHC.Generics
+import           Options.Applicative
+import qualified Data.ByteString.Lazy          as B
+
+data Options = Options {
+                        optRes :: Int -- | Resolution
+                       ,optFile :: Maybe FilePath -- | Json file with the world
+                       } deriving Show
+
+options :: Parser Options
+options =
+  Options
+    <$> option
+          auto
+          (short 'r' <> long "resolution" <> metavar "INT" <> value 1 <> help
+            "The resolution of the simulation"
+          )
+    <*> optional
+          (strArgument
+            (  metavar "FILENAME"
+            <> help "A Json file containing the state of the world"
+            )
+          )
+
+parseOptions :: ParserInfo Options
+parseOptions = info
+  (options <**> helper)
+  (fullDesc <> progDesc "Visualize speaker interaction" <> header "SpeakerPlot")
 
 winName :: String
 winName = "Speak Plot"
@@ -32,22 +65,15 @@ data World = World { evnt :: Env
                    , viewSize :: (Int, Int)
                    , viewOrig :: (Float, Float)
                    , pixPerM :: Float
-                   }
+                   } deriving (Generic, Show)
 
-iWorld :: World
-iWorld = World
-  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 100.0
-  , spkrs    = iSpeak
-  , viewSize = initalWinSize
-  , viewOrig = (0, 0)
-  , pixPerM  = 20
-  }
+instance ToJSON World
+instance FromJSON World
 
-iSpeak :: [Speaker]
-iSpeak =
-  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
-  , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
-  ]
+
+
+
+
 
 makePict :: World -> IO Picture
 makePict w =
@@ -75,37 +101,13 @@ dbToCol l = rgb' scalR scalG 0
          | otherwise = x
 
 
-main :: IO ()
-main = do
-  cont <- newIORef (undefined :: Controller)
-  interactIO (InWindow "sub" initalWinSize initalWinPos)
-             black
-             iWorld
-             makePict
-             (eventHandler cont)
-             (writeIORef cont)
-
-eventHandler :: IORef Controller -> Event -> World -> IO World
-eventHandler c e w = do
-  c' <- readIORef c
-  case e of
-    -- EventKey (MouseButton LeftButton) Down _ _ -> do
-    --   _ <- controllerModifyViewPort
-    --     c'
-    --     (\vp -> return $ vp { viewPortScale = 4.0 })
-      -- return w
-    -- EventKey k Down _ _ -> do
-    --   print k
-    --   return w
-    EventKey (Char '-') Down _ _ ->
-      return $ w { pixPerM = pixPerM w - zoomFact }
-    EventKey (Char '=') Down _ _ ->
-      return $ w { pixPerM = pixPerM w + zoomFact }
-    EventKey{}    -> return w
-    EventMotion{} -> return w
-    EventResize s -> do
-      -- controllerSetRedraw c'
-      return w { viewSize = s }
+eventHandler :: Event -> World -> IO World
+eventHandler e w = case e of
+  EventKey (Char '-') Down _ _ -> return $ w { pixPerM = pixPerM w - zoomFact }
+  EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
+  EventKey{}                   -> return w
+  EventMotion{}                -> return w
+  EventResize s                -> return w { viewSize = s }
 
 
 drawSpeaker :: Float -> Speaker -> Picture
@@ -129,3 +131,38 @@ idealSpeaker = Speaker
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f
+
+defWorld :: World
+defWorld = World
+  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 20000.0
+  , spkrs    = defSpeak
+  , viewSize = initalWinSize
+  , viewOrig = (0, 0)
+  , pixPerM  = 20
+  }
+
+defSpeak :: [Speaker]
+defSpeak = [idealSpeaker]
+  -- [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
+  -- , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
+  -- ]
+
+main :: IO ()
+main = do
+  Options {..} <- execParser parseOptions
+
+  world        <- case optFile of
+    Nothing -> return defWorld
+    Just fp -> do
+      f <- B.readFile fp
+      case decode f of
+        Nothing -> error $ "Error reading file: " ++ show fp
+        Just w' -> return w'
+
+  interactIO (InWindow "sub" initalWinSize initalWinPos)
+             black
+             world
+             makePict
+             eventHandler
+             (const $ return ())
+

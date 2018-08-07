@@ -1,0 +1,47 @@
+{
+    "evnt": [
+        {
+            "hum": 0.5,
+            "pres": 101.325,
+            "tmp": 20
+        },
+        20000
+    ],
+    "pixPerM": 20,
+    "spkrs": [
+        {
+            "dly": 0.0025,
+            "level": 0,
+            "polInv": false,
+            "pos": [
+                0,
+                0
+            ],
+            "size": [
+                1,
+                1
+            ]
+        },
+        {
+            "dly": 0,
+            "level": 0,
+            "polInv": true,
+            "pos": [
+                0,
+                -0.8575
+            ],
+            "size": [
+                1,
+                1
+            ]
+        }
+    ],
+    "viewOrig": [
+        0,
+        0
+    ],
+    "viewSize": [
+        1000,
+        1000
+    ]
+}
