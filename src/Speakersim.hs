@@ -9,12 +9,15 @@ module Speakersim
   , Resp
   , totalAtPoint
   , audioVecToSpl
+  , splToSp
+  , spToSpl
   )
 where
 
 import           Control.Applicative            ( liftA2 )
 import           Data.Complex                   ( Complex(..)
                                                 , magnitude
+                                                , phase
                                                 , cis
                                                 , mkPolar
                                                 )
@@ -70,37 +73,46 @@ respAtPoint p s = do
 audioVecToSpl :: AudioVect -> Double
 audioVecToSpl = spToSpl . magnitude
 
+-- | dBSPL to Pa
+splToSp :: Double -> Double
+splToSp x = 2.0e-5 * (10 ** (x / 20))
+
+-- | Pa to dBSPL
+spToSpl :: Double -> Double
+spToSpl x = 20 * logBase 10 (x / 2.0e-5)
+
 attDist :: Double -> AudioVect -> AudioVect
 attDist 0 x = x
 attDist d x = mkPolar (1 / d) 0 * x
 
+-- Calulation taken from http://www.sengpielaudio.com/calculator-air.htm
 attAtmos :: Double -> Freq -> Maybe Atmos -> AudioVect -> AudioVect
 attAtmos _ _ Nothing  v = v
-attAtmos d f (Just a) v = v
--- attAtmos d f a v = mkPolar alpha 0 * v
+attAtmos d f (Just a) v = mkPolar (magnitude v / fact) (phase v)
  where
-  pt = pres a * exp ((-x) * alpha * d)
-  x  = 0.1151
-  alpha =
-    8.686 * (f ** 2) * (1.84e-11 * ((pres a / pr) ** (-1)) * sqrt (t / t0) + y)
-  y =
-    (t / t0)
-      ** (-5 / 2)
-      *  (0.01275 * exp (-2239.1 / t) * (((fsq / frO) + frO) ** (-1)))
-  z   = 0.1068 * exp (-3352 / t) * ((frN + (fsq / frN)) ** (-1))
-  frO = relP * (24 + ((4.04e4 * h * (0.02 + h)) / (0.391 + h)))   -- oxygen relaxation frequency
+  t    = tmp a + 273.15                                                        -- Temp in K
+  p    = pres a * 1000 / 101325                                                -- Relative pressure
+  cHum = 4.6151 - 6.8346 * (273.15 / t) ** 1.261
+  h    = (hum a * 100) * 10 ** cHum * p
+  tr   = t / (273.15 + 20)                                                     -- Relative temp to 20C
+  frO  = p * (24 + 4.04e4 * h * (0.02 + h) / (0.391 + h))                      -- Oxygen relaxation frequency
   frN =
-    relP
-      * (1 / sqrt (t / t0))
-      * (9 + 280 * h * exp (-4.170 * (t / t0 ** (-1 / 3) - 1)))   -- nitrogen relaxation frequency
-  psat = pres a * 10 ** (-6.8346 * ((t01 / t) ** 1.261) + 4.6151) -- saturation vapor pressure
-  h    = hum a * psat / pres a                                    -- molar concentration of water vapor, as a percentage
-  fsq  = f ** 2
-  relP = pres a / pr
-  t    = tmp a + t0                                               -- Temp in Kelvin
-  t0   = 293.15                                                   -- Kelvin ref temp
-  pr   = 101.325                                                  -- reference ambient atmospheric pressure: 101.325 kPa
-  t01  = t0 + 0.01                                                -- triple-point isotherm temp
+    p * ((tr ** (-0.5)) * (9 + 280 * h * exp (-4.17 * (tr ** (-1 / 3) - 1))))  -- Nitrogen relaxation frequency
+  deltaM =
+    8.686
+      * f
+      * f
+      * ( 1.84e-11
+        * (1 / p)
+        * sqrt tr
+        + (tr ** (-2.5))
+        * ( 0.01275
+          * (exp (-2239.1 / t) / (frO + f * f / frO))
+          + 0.1068
+          * (exp (-3352 / t) / (frN + f * f / frN))
+          )
+        )                                                                      -- The dampening in dB/m
+  fact = 10 ** (deltaM * d / 20)
 
 dlyPhase :: Time -> Freq -> AudioVect -> AudioVect
 dlyPhase t f x = cis (f * t * pi * 2) * x
@@ -110,55 +122,47 @@ phaseInv p x = if p then cis pi * x else x
 
 -- Calulation taken from http://www.sengpielaudio.com/calculator-airpressure.htm
 speedOfSound :: Maybe Atmos -> Double
-speedOfSound Nothing               = 343.0
+speedOfSound Nothing               = 343.0               -- Defualt value
 speedOfSound (Just (Atmos t rh p)) = c1 + c2 - c3
  where
   e    = exp 1
-  p'   = p * 1000
-  tK   = t + 273.15
-  enh  = 3.141593e-8 * p' + 1.00062 + t ** 2 * 5.6e-7
-  psv1 = tK ** 2 * 1.2378847e-5 - 1.9121316e-2 * tK
+  p'   = p * 1000                                        -- ambient pressue in pA
+  tK   = t + 273.15                                      -- Temp in Kelvin
+  enh  = 3.141593e-8 * p' + 1.00062 + (t ** 2) * 5.6e-7  -- Moleculear concentration of water wapor
+  psv1 = (tK ** 2) * 1.2378847e-5 - 1.9121316e-2 * tK
   psv2 = 33.93711047 - 6.3431645e3 / tK
-  psv  = e ** psv1 * e ** psv2
-  xw   = rh * enh * psv / p'
-  xc   = 400.0e-6
+  psv  = (e ** psv1) * (e ** psv2)
+  xw   = rh * enh * psv / p'                             -- Mole fraction of water
+  xc   = 400.0e-6                                        -- Mole fraction of CO2
   c1 =
     0.603055
-      *  t
-      +  331.5024
-      -  t
-      ** 2
-      *  5.28e-4
-      +  (0.1495874 * t + 51.471935 - t ** 2 * 7.82e-4)
-      *  xw
+      * t
+      + 331.5024
+      - (t ** 2)
+      * 5.28e-4
+      + (0.1495874 * t + 51.471935 - (t ** 2) * 7.82e-4)
+      * xw
   c2 =
-    (-1.82e-7 + 3.73e-8 * t - t ** 2 * 2.93e-10)
+    (-1.82e-7 + 3.73e-8 * t - (t ** 2) * 2.93e-10)
       * p'
-      + (-85.20931 - 0.228525 * t + t ** 2 * 5.91e-5)
+      + (-85.20931 - 0.228525 * t + (t ** 2) * 5.91e-5)
       * xc
   c3 =
-    xw
-      ** 2
-      *  2.835149
-      -  p'
-      ** 2
-      *  2.15e-13
-      +  xc
-      ** 2
-      *  29.179762
-      +  4.86e-4
-      *  xw
-      *  p'
-      *  xc
+    (xw ** 2)
+      * 2.835149
+      - (p' ** 2)
+      * 2.15e-13
+      + (xc ** 2)
+      * 29.179762
+      + 4.86e-4
+      * xw
+      * p'
+      * xc
 
 dist :: Cord -> Cord -> Float
-dist a b = sqrt $ ((fst b - fst a) ^ 2) + ((snd b - snd a) ^ 2)
+dist a b = sqrt $ ((fst b - fst a) ** 2) + ((snd b - snd a) ** 2)
 
 propTime :: Maybe Atmos -> Double -> Time
-propTime e d = d / speedOfSound e
+propTime a d = d / speedOfSound a
 
-splToSp :: Double -> Double
-splToSp x = 2.0e-5 * (10 ** (x / 20))
 
-spToSpl :: Double -> Double
-spToSpl x = 20 * logBase 10 (x / 2.0e-5)

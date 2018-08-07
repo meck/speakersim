@@ -3,7 +3,7 @@ module Main where
 import           Speakersim
 import           Graphics.Gloss.Raster.Field
 import           Graphics.Gloss.Interface.IO.Interact
-import           Graphics.Gloss
+-- import           Graphics.Gloss
 import           Control.Monad.Reader
 import           Data.Complex
 import           Data.IORef
@@ -34,8 +34,7 @@ data World = World { evnt :: Env
                    , pixPerM :: Float
                    }
 
-
-
+iWorld :: World
 iWorld = World
   { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 100.0
   , spkrs    = iSpeak
@@ -44,9 +43,10 @@ iWorld = World
   , pixPerM  = 20
   }
 
+iSpeak :: [Speaker]
 iSpeak =
-  [ idealSpeaker { pos = (0.0, 50.0), dly = 0.0025 }
-  , idealSpeaker { pos = (0.0, 50 - 0.8575), polInv = True }
+  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
+  , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
   ]
 
 makePict :: World -> IO Picture
@@ -57,19 +57,19 @@ makePict w =
     : (drawSpeaker (pixPerM w) <$> spkrs w)
 
 pointColor :: World -> Point -> Color
-pointColor (World e sp vs vo ppm) p = dbToCol totDb
+pointColor (World e sp vs _ ppm) p = dbToCol totDb
  where
   p'    = uncurry bimap (bimap' ((*) . (/ 2) . (/ ppm) . fromIntegral) vs) p -- TODO /2 for 2x res?
   totDb = audioVecToSpl $ runReader (totalAtPoint p' sp) e
 
 dbToCol :: Double -> Color
-dbToCol x = rgb' scalR scalG 0
+dbToCol l = rgb' scalR scalG 0
  where
   sMax  = 100
   sMin  = 60
   sMid  = sMin + (sMax - sMin) / 2
-  scalR = realToFrac $ scal $ (x - sMin) / (sMax - sMin)
-  scalG = realToFrac $ scal $ (x - sMin) / (sMid - sMin)
+  scalR = realToFrac $ scal $ (l - sMin) / (sMax - sMin)
+  scalG = realToFrac $ scal $ (l - sMin) / (sMid - sMin)
   scal x | x < 0     = 0
          | x > 1     = 1
          | otherwise = x
@@ -123,7 +123,7 @@ idealSpeaker = Speaker
   , level  = 0
   , dly    = 0
   , polInv = False
-  , res    = return (1 :+ 0)
+  , res    = const (1 :+ 0)
   , size   = (1, 1)
   }
 
