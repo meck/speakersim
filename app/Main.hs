@@ -7,6 +7,11 @@ import           Speakersim
 import           Graphics.Gloss.Raster.Field
 import           Graphics.Gloss.Interface.IO.Interact
 import           Control.Monad.Reader
+import           Data.Colour                    ( blend )
+import           Data.Colour.SRGB               ( RGB(..)
+                                                , toSRGB
+                                                , sRGB
+                                                )
 import           Data.Complex
 import           Data.Bifunctor
 import           Data.Aeson                     ( ToJSON
@@ -64,16 +69,11 @@ data World = World { evnt :: Env
                    , spkrs :: [Speaker]
                    , viewSize :: (Int, Int)
                    , viewOrig :: (Float, Float)
-                   , pixPerM :: Float
+                   , pixPerM :: Float             -- TODO Non Negative type
                    } deriving (Generic, Show)
 
 instance ToJSON World
 instance FromJSON World
-
-
-
-
-
 
 makePict :: World -> IO Picture
 makePict w =
@@ -89,21 +89,36 @@ pointColor (World e sp vs _ ppm) p = dbToCol totDb
   totDb = audioVecToSpl $ runReader (totalAtPoint p' sp) e
 
 dbToCol :: Double -> Color
-dbToCol l = rgb' scalR scalG 0
+dbToCol v = valToCol gradientDelta vClamped
  where
-  sMax  = 100
-  sMin  = 60
-  sMid  = sMin + (sMax - sMin) / 2
-  scalR = realToFrac $ scal $ (l - sMin) / (sMax - sMin)
-  scalG = realToFrac $ scal $ (l - sMin) / (sMid - sMin)
-  scal x | x < 0     = 0
-         | x > 1     = 1
-         | otherwise = x
+  scaleMax       = 90
+  scaleMin       = 60
+  gradientColors = [black, blue, green, red]
+  delta          = 1 / realToFrac (pred $ length gradientColors)
+  gradientDelta  = zip [0, delta ..] gradientColors
+  vClamped | v > realToFrac scaleMax = 1
+           | v < realToFrac scaleMin = 0
+           | otherwise = (realToFrac v - scaleMin) / (scaleMax - scaleMin)
+  valToCol (c : cc : cs) val | val <= fst cc = mix (1 - x) (snd c) (snd cc)
+                             | otherwise     = valToCol (cc : cs) val
+    where x = (val - fst c) / (fst cc - fst c)
+  valToCol _ _ = error "Not enough colors in list"
+  mix f c c' = makeColor (channelRed mixed)
+                         (channelBlue mixed)
+                         (channelGreen mixed)
+                         1
+   where
+    (aR, aG, aB, _) = rgbaOfColor c
+    (bR, bG, bB, _) = rgbaOfColor c'
+    mixed           = toSRGB $ blend f (sRGB aR aG aB) (sRGB bR bG bB)
+
 
 
 eventHandler :: Event -> World -> IO World
 eventHandler e w = case e of
-  EventKey (Char '-') Down _ _ -> return $ w { pixPerM = pixPerM w - zoomFact }
+  EventKey (Char '-') Down _ _ -> return $ w
+    { pixPerM = if pixPerM w > zoomFact then pixPerM w - zoomFact else pixPerM w -- TODO Change type to cleanup
+    }
   EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
   EventKey{}                   -> return w
   EventMotion{}                -> return w
@@ -134,7 +149,7 @@ bimap' f = bimap f f
 
 defWorld :: World
 defWorld = World
-  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 20000.0
+  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 100.0
   , spkrs    = defSpeak
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
@@ -142,10 +157,11 @@ defWorld = World
   }
 
 defSpeak :: [Speaker]
-defSpeak = [idealSpeaker]
-  -- [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
-  -- , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
-  -- ]
+-- defSpeak = [idealSpeaker]
+defSpeak =
+  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
+  , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
+  ]
 
 main :: IO ()
 main = do
@@ -165,4 +181,3 @@ main = do
              makePict
              eventHandler
              (const $ return ())
-
