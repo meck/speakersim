@@ -1,12 +1,12 @@
 {
-    "evnt": [
-        {
+    "frqAtmos": {
+        "atmos": {
             "hum": 0.5,
             "pres": 101.325,
             "tmp": 20
         },
-        16000
-    ],
+        "freq": 16000
+    },
     "pixPerM": 20,
     "showGrid": true,
     "spkrs": [

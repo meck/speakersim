@@ -1,4 +1,5 @@
 .stack-work/
 speakersim.cabal
+.DS_Store
 *~
 *.eventlog

@@ -7,10 +7,10 @@ module Speakersim
   , Freq
   , AudioVect
   , Atmos(..)
-  , Env(..)
+  , FrqAtmos(..)
   , Speaker(..)
   , idealSpeaker
-  , Resp
+  , ReaderResp
   , totalAtPoint
   , audioVecToSpl
   , splToSp
@@ -52,11 +52,17 @@ instance ToJSON Atmos
 
 -- | The frequency of interest
 -- with optional atmospheric conditions
-data Env = Env (Maybe Atmos) Freq deriving (Generic, Show)
+data FrqAtmos = FrqAtmos { atmos :: Maybe Atmos,
+                           freq :: Freq
+                         } deriving (Generic, Show)
 
-instance FromJSON Env
-instance ToJSON Env
+instance FromJSON FrqAtmos
+instance ToJSON FrqAtmos
 
+-- | Response awaiting an environment
+type ReaderResp = Reader FrqAtmos AudioVect
+
+-- | A Speaker
 data Speaker = Speaker { pos :: Cord              -- ^ Physical placment of a speaker in meters
                        , level :: Double          -- ^ Level of the speaker in dB (<= 0)
                        , polInv :: Bool           -- ^ Polarity
@@ -95,17 +101,15 @@ instance FromJSON Speaker where
     <*> pure (const (1:+0))
     <*> s .: "size"
 
--- | A Audio respone awaiting an environment
-type Resp = Reader Env AudioVect
 
 -- | Total Response at cord from multiple speakers
-totalAtPoint :: Cord -> [Speaker] -> Resp
+totalAtPoint :: Cord -> [Speaker] -> ReaderResp
 totalAtPoint c ss = foldr (liftA2 (+)) (pure (0 :+ 0)) $ respAtPoint c <$> ss
 
 -- | Respone of a single speaker at cord
-respAtPoint :: Cord -> Speaker -> Resp
+respAtPoint :: Cord -> Speaker -> ReaderResp
 respAtPoint p s = do
-  (Env a f) <- ask
+  (FrqAtmos a f) <- ask
   let d = realToFrac $ dist p $ pos s
       t = propTime a (realToFrac d) + dly s
       i = polInv s

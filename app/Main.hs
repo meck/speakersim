@@ -58,10 +58,13 @@ initalWinPos = (100, 100)
 zoomFact :: Float
 zoomFact = 5
 
+moveFact :: Float
+moveFact = 1000
+
 iDisplay :: Display
 iDisplay = InWindow winName initalWinSize initalWinPos
 
-data World = World { evnt :: Env
+data World = World { frqAtmos :: FrqAtmos
                    , spkrs :: [Speaker]
                    , viewSize :: (Int, Int)
                    , viewOrig :: (Float, Float)
@@ -75,15 +78,21 @@ instance FromJSON World
 makePict :: Int -> World -> IO Picture
 makePict r w = return $ pictures [sim, speakers, grid]
  where
-  sim      = uncurry makePicture (viewSize w) r r (pointColor w)
-  grid     = if showGrid w then drawGrid (viewSize w) (pixPerM w) else Blank
-  speakers = pictures $ drawSpeaker (pixPerM w) <$> spkrs w
+  sim  = uncurry makePicture (viewSize w) r r (pointColor w)
+  grid = if showGrid w then drawGrid (viewSize w) (pixPerM w) else Blank
+  speakers =
+    uncurry translate (viewOrig w)
+      $   pictures
+      $   drawSpeaker (pixPerM w)
+      <$> spkrs w
 
 pointColor :: World -> Point -> Color
-pointColor (World e sp vs _ ppm _) p = dbToCol totDb
+pointColor (World e sp vs vo ppm _) p = dbToCol totDb
  where
-  p'    = uncurry bimap (bimap' ((*) . (/ 2) . (/ ppm) . fromIntegral) vs) p -- TODO /2 for 2x res?
-  totDb = audioVecToSpl $ runReader (totalAtPoint p' sp) e
+  liftPoint f a = uncurry bimap (bimap' f a)
+  pScale = liftPoint ((*) . (/ 2) . (/ ppm) . fromIntegral) vs
+  pTrans = liftPoint ((+) . (/ ppm) . negate) vo
+  totDb  = audioVecToSpl $ runReader (totalAtPoint (pTrans $ pScale p) sp) e
 
 dbToCol :: Double -> Color
 dbToCol v = valToCol gradientDelta vClamped
@@ -131,15 +140,32 @@ drawSpeaker sc s =
     $ uncurry rectanglePath
     $ size s
 
-eventHandler :: Event -> World -> IO World
+eventHandler :: Event -> World -> IO World -- TODO Cleanup, lenses?
 eventHandler e w = case e of
   EventKey (Char '-') Down _ _ ->
     return $ w { pixPerM = pixPerM w `subToZero` zoomFact }
   EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
   EventKey (Char 'g') Down _ _ -> return $ w { showGrid = not $ showGrid w }
-  EventKey{}                   -> return w
-  EventMotion{}                -> return w
-  EventResize s                -> return w { viewSize = s }
+  EventKey (Char 'h') Down _ _ ->
+    let newOX = fst (viewOrig w) - moveFact / pixPerM w
+        newOY = snd (viewOrig w)
+    in  return $ w { viewOrig = (newOX, newOY) }
+  EventKey (Char 'j') Down _ _ ->
+    let newOY = snd (viewOrig w) - moveFact / pixPerM w
+        newOX = fst (viewOrig w)
+    in  return $ w { viewOrig = (newOX, newOY) }
+  EventKey (Char 'k') Down _ _ ->
+    let newOY = snd (viewOrig w) + moveFact / pixPerM w
+        newOX = fst (viewOrig w)
+    in  return $ w { viewOrig = (newOX, newOY) }
+  EventKey (Char 'l') Down _ _ ->
+    let newOX = fst (viewOrig w) + moveFact / pixPerM w
+        newOY = snd (viewOrig w)
+    in  return $ w { viewOrig = (newOX, newOY) }
+
+  EventKey{}    -> return w
+  EventMotion{} -> return w
+  EventResize s -> return w { viewSize = s }
   where subToZero a b = if a - b <= 0 then a else a - b
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
@@ -147,7 +173,10 @@ bimap' f = bimap f f
 
 defWorld :: World
 defWorld = World
-  { evnt     = Env (Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}) 100.0
+  { frqAtmos = FrqAtmos
+    { atmos = Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}
+    , freq  = 100.0
+    }
   , spkrs    = defSpeak
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
