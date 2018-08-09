@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Main where
 
@@ -23,7 +23,7 @@ import           Options.Applicative
 import qualified Data.ByteString.Lazy          as B
 
 data Options = Options {
-                        optRes :: Int -- | Resolution
+                        optRes :: Int             -- | Resolution
                        ,optFile :: Maybe FilePath -- | Json file with the world
                        } deriving Show
 
@@ -56,9 +56,6 @@ initalWinSize = (1000, 1000)
 initalWinPos :: (Int, Int)
 initalWinPos = (100, 100)
 
-resol :: Int
-resol = 1
-
 zoomFact :: Float
 zoomFact = 5
 
@@ -75,11 +72,11 @@ data World = World { evnt :: Env
 instance ToJSON World
 instance FromJSON World
 
-makePict :: World -> IO Picture
-makePict w =
+makePict :: Int -> World -> IO Picture
+makePict r w =
   return
     $ pictures
-    $ uncurry makePicture (viewSize w) resol resol (pointColor w)
+    $ uncurry makePicture (viewSize w) r r (pointColor w)
     : (drawSpeaker (pixPerM w) <$> spkrs w)
 
 pointColor :: World -> Point -> Color
@@ -104,8 +101,8 @@ dbToCol v = valToCol gradientDelta vClamped
     where x = (val - fst c) / (fst cc - fst c)
   valToCol _ _ = error "Not enough colors in list"
   mix f c c' = makeColor (channelRed mixed)
-                         (channelBlue mixed)
                          (channelGreen mixed)
+                         (channelBlue mixed)
                          1
    where
     (aR, aG, aB, _) = rgbaOfColor c
@@ -159,15 +156,15 @@ defWorld = World
 defSpeak :: [Speaker]
 -- defSpeak = [idealSpeaker]
 defSpeak =
-  [ idealSpeaker { pos = (0.0, 0.0), dly = 0.0025 }
+  [ idealSpeaker { pos = (0.0, 10), dly = 0.0025 }
   , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
   ]
 
 main :: IO ()
 main = do
-  Options {..} <- execParser parseOptions
+  Options { optFile, optRes } <- execParser parseOptions
 
-  world        <- case optFile of
+  world                       <- case optFile of
     Nothing -> return defWorld
     Just fp -> do
       f <- B.readFile fp
@@ -175,9 +172,10 @@ main = do
         Nothing -> error $ "Error reading file: " ++ show fp
         Just w' -> return w'
 
+
   interactIO (InWindow "sub" initalWinSize initalWinPos)
              black
              world
-             makePict
+             (makePict optRes)
              eventHandler
              (const $ return ())
