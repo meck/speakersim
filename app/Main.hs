@@ -65,7 +65,7 @@ data World = World { evnt :: Env
                    , spkrs :: [Speaker]
                    , viewSize :: (Int, Int)
                    , viewOrig :: (Float, Float)
-                   , pixPerM :: Float             -- TODO Non Negative type
+                   , pixPerM :: Float
                    } deriving (Generic, Show)
 
 instance ToJSON World
@@ -112,13 +112,13 @@ dbToCol v = valToCol gradientDelta vClamped
 
 eventHandler :: Event -> World -> IO World
 eventHandler e w = case e of
-  EventKey (Char '-') Down _ _ -> return $ w
-    { pixPerM = if pixPerM w > zoomFact then pixPerM w - zoomFact else pixPerM w -- TODO Change type to cleanup
-    }
+  EventKey (Char '-') Down _ _ ->
+    return $ w { pixPerM = pixPerM w `subToZero` zoomFact }
   EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
   EventKey{}                   -> return w
   EventMotion{}                -> return w
   EventResize s                -> return w { viewSize = s }
+  where subToZero a b = if a - b <= 0 then a else a - b
 
 
 drawSpeaker :: Float -> Speaker -> Picture
@@ -129,8 +129,6 @@ drawSpeaker sc s =
     $ polygon
     $ uncurry rectanglePath
     $ size s
-
-
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f

@@ -77,10 +77,10 @@ idealSpeaker = Speaker
   }
 
 instance Show Speaker where
-  show s = unlines [ "pos: " <> show ( pos s),
+  show s = unlines [ "pos: " <> show (pos s),
                      "level: " <> show (level s),
                      "polInv: " <> show (polInv s),
-                     "size: " <> show ( size s),
+                     "size: " <> show (size s),
                      "dly: " <> show (dly s)]
 
 instance ToJSON Speaker where
@@ -95,7 +95,7 @@ instance FromJSON Speaker where
     <*> pure (const (1:+0))
     <*> s .: "size"
 
--- | A Audio respone awaiting an enviorment
+-- | A Audio respone awaiting an environment
 type Resp = Reader Env AudioVect
 
 -- | Total Response at cord from multiple speakers
