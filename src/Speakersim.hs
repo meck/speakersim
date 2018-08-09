@@ -9,6 +9,7 @@ module Speakersim
   , Atmos(..)
   , Env(..)
   , Speaker(..)
+  , idealSpeaker
   , Resp
   , totalAtPoint
   , audioVecToSpl
@@ -63,6 +64,17 @@ data Speaker = Speaker { pos :: Cord              -- ^ Physical placment of a sp
                        , res :: Freq -> AudioVect -- ^ Pa measured @ 1 meter at f
                        , size :: (Float,Float)    -- ^ Physical size of the speaker in meters
                        }
+
+-- | A speaker with ideal frequency responce
+idealSpeaker :: Speaker
+idealSpeaker = Speaker
+  { pos    = (0, 0)
+  , level  = 0
+  , dly    = 0
+  , polInv = False
+  , res    = const (1 :+ 0)
+  , size   = (1, 1)
+  }
 
 instance Show Speaker where
   show s = unlines [ "pos: " <> show ( pos s),

@@ -12,7 +12,6 @@ import           Data.Colour.SRGB               ( RGB(..)
                                                 , toSRGB
                                                 , sRGB
                                                 )
-import           Data.Complex
 import           Data.Bifunctor
 import           Data.Aeson                     ( ToJSON
                                                 , FromJSON
@@ -131,15 +130,7 @@ drawSpeaker sc s =
     $ uncurry rectanglePath
     $ size s
 
-idealSpeaker :: Speaker
-idealSpeaker = Speaker
-  { pos    = (0, 0)
-  , level  = 0
-  , dly    = 0
-  , polInv = False
-  , res    = const (1 :+ 0)
-  , size   = (1, 1)
-  }
+
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f
