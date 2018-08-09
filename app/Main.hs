@@ -66,20 +66,21 @@ data World = World { evnt :: Env
                    , viewSize :: (Int, Int)
                    , viewOrig :: (Float, Float)
                    , pixPerM :: Float
+                   , showGrid :: Bool
                    } deriving (Generic, Show)
 
 instance ToJSON World
 instance FromJSON World
 
 makePict :: Int -> World -> IO Picture
-makePict r w =
-  return
-    $ pictures
-    $ uncurry makePicture (viewSize w) r r (pointColor w)
-    : (drawSpeaker (pixPerM w) <$> spkrs w)
+makePict r w = return $ pictures [sim, speakers, grid]
+ where
+  sim      = uncurry makePicture (viewSize w) r r (pointColor w)
+  grid     = if showGrid w then drawGrid (viewSize w) (pixPerM w) else Blank
+  speakers = pictures $ drawSpeaker (pixPerM w) <$> spkrs w
 
 pointColor :: World -> Point -> Color
-pointColor (World e sp vs _ ppm) p = dbToCol totDb
+pointColor (World e sp vs _ ppm _) p = dbToCol totDb
  where
   p'    = uncurry bimap (bimap' ((*) . (/ 2) . (/ ppm) . fromIntegral) vs) p -- TODO /2 for 2x res?
   totDb = audioVecToSpl $ runReader (totalAtPoint p' sp) e
@@ -108,18 +109,18 @@ dbToCol v = valToCol gradientDelta vClamped
     (bR, bG, bB, _) = rgbaOfColor c'
     mixed           = toSRGB $ blend f (sRGB aR aG aB) (sRGB bR bG bB)
 
-
-
-eventHandler :: Event -> World -> IO World
-eventHandler e w = case e of
-  EventKey (Char '-') Down _ _ ->
-    return $ w { pixPerM = pixPerM w `subToZero` zoomFact }
-  EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
-  EventKey{}                   -> return w
-  EventMotion{}                -> return w
-  EventResize s                -> return w { viewSize = s }
-  where subToZero a b = if a - b <= 0 then a else a - b
-
+drawGrid :: (Int, Int) -> Float -> Picture
+drawGrid (hSize, vSize) spacing =
+  color (greyN 0.4) $ pictures $ pictures <$> [hLines, vLines]
+ where
+  hMax = fromIntegral hSize / 2
+  hMin = negate hMax
+  vMax = fromIntegral vSize / 2
+  vMin = negate vMax
+  hLine vPos = Line [(hMin, vPos), (hMax, vPos)]
+  vLine hPos = Line [(hPos, vMin), (hPos, vMax)]
+  hLines = hLine <$> [0, spacing .. vMax] ++ [0, negate spacing .. vMin]
+  vLines = vLine <$> [0, spacing .. hMax] ++ [0, negate spacing .. hMin]
 
 drawSpeaker :: Float -> Speaker -> Picture
 drawSpeaker sc s =
@@ -129,6 +130,17 @@ drawSpeaker sc s =
     $ polygon
     $ uncurry rectanglePath
     $ size s
+
+eventHandler :: Event -> World -> IO World
+eventHandler e w = case e of
+  EventKey (Char '-') Down _ _ ->
+    return $ w { pixPerM = pixPerM w `subToZero` zoomFact }
+  EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
+  EventKey (Char 'g') Down _ _ -> return $ w { showGrid = not $ showGrid w }
+  EventKey{}                   -> return w
+  EventMotion{}                -> return w
+  EventResize s                -> return w { viewSize = s }
+  where subToZero a b = if a - b <= 0 then a else a - b
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f
@@ -140,12 +152,13 @@ defWorld = World
   , viewSize = initalWinSize
   , viewOrig = (0, 0)
   , pixPerM  = 20
+  , showGrid = True
   }
 
 defSpeak :: [Speaker]
 -- defSpeak = [idealSpeaker]
 defSpeak =
-  [ idealSpeaker { pos = (0.0, 10), dly = 0.0025 }
+  [ idealSpeaker { pos = (0.0, 0), dly = 0.0025 }
   , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
   ]
 

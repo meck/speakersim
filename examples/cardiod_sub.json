@@ -5,9 +5,10 @@
             "pres": 101.325,
             "tmp": 20
         },
-        20000
+        100
     ],
     "pixPerM": 20,
+    "showGrid": true,
     "spkrs": [
         {
             "dly": 0.0025,

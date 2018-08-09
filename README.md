@@ -1,5 +1,6 @@
 # speakersim
 
-[WIP] A utillity for visualising subwofer interference as a haskell experiment
+#### [WIP] A utillity for visualising subwofer interference as a haskell experiment
 
-![Plot](docs/plot.png)
+![Cardiod Sub](docs/cardsub.png)
+![HF Interfence](docs/hfint.png)
