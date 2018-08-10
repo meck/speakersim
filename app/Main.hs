@@ -118,7 +118,7 @@ dbToCol v = valToCol gradientDelta vClamped
     (bR, bG, bB, _) = rgbaOfColor c'
     mixed           = toSRGB $ blend f (sRGB aR aG aB) (sRGB bR bG bB)
 
-drawGrid :: (Int, Int) -> Float -> Picture
+drawGrid :: (Int, Int) -> Float -> Picture -- TODO Offset grid when moving
 drawGrid (hSize, vSize) spacing =
   color (greyN 0.4) $ pictures $ pictures <$> [hLines, vLines]
  where
