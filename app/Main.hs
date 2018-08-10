@@ -133,12 +133,11 @@ drawGrid (hSize, vSize) spacing =
 
 drawSpeaker :: Float -> Speaker -> Picture
 drawSpeaker sc s =
-  color (greyN 0.7)
-    $ uncurry translate (bimap' (* sc) (pos s))
-    $ scale sc sc
-    $ polygon
-    $ uncurry rectanglePath
-    $ size s
+  uncurry translate (bimap' (* sc) (pos s)) $ scale sc sc $ pictures
+    [spk, frame]
+ where
+  spk   = color (greyN 0.7) $ uncurry rectangleSolid $ size s
+  frame = color black $ uncurry rectangleWire $ size s
 
 eventHandler :: Event -> World -> IO World -- TODO Cleanup, lenses?
 eventHandler e w = case e of
