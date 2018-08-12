@@ -99,7 +99,7 @@ dbToCol v = valToCol gradientDelta vClamped
  where
   scaleMax       = 90
   scaleMin       = 60
-  gradientColors = [black, blue, green, red]
+  gradientColors = [black, blue, azure, green, yellow, red]
   delta          = 1 / realToFrac (pred $ length gradientColors)
   gradientDelta  = zip [0, delta ..] gradientColors
   vClamped | v > realToFrac scaleMax = 1
@@ -139,33 +139,28 @@ drawSpeaker sc s =
   spk   = color (greyN 0.7) $ uncurry rectangleSolid $ size s
   frame = color black $ uncurry rectangleWire $ size s
 
-eventHandler :: Event -> World -> IO World -- TODO Cleanup, lenses?
-eventHandler e w = case e of
+eventHandler :: Event -> World -> IO World
+eventHandler e w@World { pixPerM, showGrid, viewOrig } = case e of
   EventKey (Char '-') Down _ _ ->
-    return $ w { pixPerM = pixPerM w `subToZero` zoomFact }
-  EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM w + zoomFact }
-  EventKey (Char 'g') Down _ _ -> return $ w { showGrid = not $ showGrid w }
+    return $ w { pixPerM = pixPerM `subToZero` zoomFact }
+  EventKey (Char '=') Down _ _ -> return $ w { pixPerM = pixPerM + zoomFact }
+  EventKey (Char 'g') Down _ _ -> return $ w { showGrid = not showGrid }
   EventKey (Char 'h') Down _ _ ->
-    let newOX = fst (viewOrig w) - moveFact / pixPerM w
-        newOY = snd (viewOrig w)
-    in  return $ w { viewOrig = (newOX, newOY) }
+    return $ w { viewOrig = mapX (subtract movePix) viewOrig }
   EventKey (Char 'j') Down _ _ ->
-    let newOY = snd (viewOrig w) - moveFact / pixPerM w
-        newOX = fst (viewOrig w)
-    in  return $ w { viewOrig = (newOX, newOY) }
+    return $ w { viewOrig = mapY (subtract movePix) viewOrig }
   EventKey (Char 'k') Down _ _ ->
-    let newOY = snd (viewOrig w) + moveFact / pixPerM w
-        newOX = fst (viewOrig w)
-    in  return $ w { viewOrig = (newOX, newOY) }
+    return $ w { viewOrig = mapY (+ movePix) viewOrig }
   EventKey (Char 'l') Down _ _ ->
-    let newOX = fst (viewOrig w) + moveFact / pixPerM w
-        newOY = snd (viewOrig w)
-    in  return $ w { viewOrig = (newOX, newOY) }
-
+    return $ w { viewOrig = mapX (+ movePix) viewOrig }
   EventKey{}    -> return w
   EventMotion{} -> return w
   EventResize s -> return w { viewSize = s }
-  where subToZero a b = if a - b <= 0 then a else a - b
+ where
+  subToZero a b = if a - b <= 0 then a else a - b
+  movePix = moveFact / pixPerM
+  mapX f (x, y) = (f x, y)
+  mapY = fmap
 
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f
