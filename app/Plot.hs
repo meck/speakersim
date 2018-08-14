@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Plot (PlotWorld(..), defaultPlot, showPlot) where
+module Plot (PlotWorld(..), showPlot) where
 
 import           Speakersim
 import           Graphics.Gloss.Raster.Field
@@ -24,34 +24,12 @@ data PlotWorld = PlotWorld { frqAtmos :: FrqAtmos
                        , viewOrig :: (Float, Float)
                        , pixPerM :: Float
                        , showGrid :: Bool
+                       , scaleMin :: Float
+                       , scaleMax :: Float
                        } deriving (Generic, Show)
 
 instance ToJSON PlotWorld
 instance FromJSON PlotWorld
-
-defaultPlot :: PlotWorld
-defaultPlot = PlotWorld
-  { frqAtmos = FrqAtmos
-    { atmos = Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}
-    , freq  = 100.0
-    }
-  , spkrs    = [idealSpeaker]
-  , viewSize = (1000, 1000)
-  , viewOrig = (0, 0)
-  , pixPerM  = 20
-  , showGrid = True
-  }
-
--- defSpeak =
---   [ idealSpeaker { pos = (0.0, 0), dly = 0.0025 }
---   , idealSpeaker { pos = (0.0, -0.8575), polInv = True }
---   ]
-
-winName :: String -- TODO Move to PlotWorld
-winName = "Speak Plot"
-
-initalWinPos :: (Int, Int)
-initalWinPos = (100, 100)
 
 zoomFact :: Float
 zoomFact = 5
@@ -59,33 +37,14 @@ zoomFact = 5
 moveFact :: Float
 moveFact = 1000
 
-makePict :: Int -> PlotWorld -> IO Picture
-makePict r w = return $ pictures [sim, speakers, grid]
- where
-  sim  = uncurry makePicture (viewSize w) r r (pointColor w)
-  grid = if showGrid w then drawGrid (viewSize w) (pixPerM w) else Blank
-  speakers =
-    uncurry translate (viewOrig w)
-      $   pictures
-      $   drawSpeaker (pixPerM w)
-      <$> spkrs w
+gradientColors :: [Color]
+gradientColors = [black, blue, azure, green, yellow, red]
 
-pointColor :: PlotWorld -> Point -> Color
-pointColor (PlotWorld e sp vs vo ppm _) p = dbToCol totDb
+dbToCol :: PlotWorld -> Double -> Color
+dbToCol PlotWorld { scaleMin, scaleMax } v = valToCol gradientDelta vClamped
  where
-  liftPoint f a = uncurry bimap (bimap' f a)
-  pScale = liftPoint ((*) . (/ 2) . (/ ppm) . fromIntegral) vs
-  pTrans = liftPoint ((+) . (/ ppm) . negate) vo
-  totDb  = audioVecToSpl $ runReader (totalAtPoint (pTrans $ pScale p) sp) e
-
-dbToCol :: Double -> Color
-dbToCol v = valToCol gradientDelta vClamped
- where
-  scaleMax       = 90
-  scaleMin       = 60
-  gradientColors = [black, blue, azure, green, yellow, red]
-  delta          = 1 / realToFrac (pred $ length gradientColors)
-  gradientDelta  = zip [0, delta ..] gradientColors
+  delta         = 1 / realToFrac (pred $ length gradientColors)
+  gradientDelta = zip [0, delta ..] gradientColors
   vClamped | v > realToFrac scaleMax = 1
            | v < realToFrac scaleMin = 0
            | otherwise = (realToFrac v - scaleMin) / (scaleMax - scaleMin)
@@ -101,6 +60,16 @@ dbToCol v = valToCol gradientDelta vClamped
     (aR, aG, aB, _) = rgbaOfColor c
     (bR, bG, bB, _) = rgbaOfColor c'
     mixed           = toSRGB $ blend f (sRGB aR aG aB) (sRGB bR bG bB)
+
+pointColor :: PlotWorld -> Point -> Color
+pointColor w@PlotWorld { frqAtmos, spkrs, viewSize, viewOrig, pixPerM } p =
+  dbToCol w totDb
+ where
+  liftPoint f a = uncurry bimap (bimap' f a)
+  pScale = liftPoint ((*) . (/ 2) . (/ pixPerM) . fromIntegral) viewSize
+  pTrans = liftPoint ((+) . (/ pixPerM) . negate) viewOrig
+  totDb =
+    audioVecToSpl $ runReader (totalAtPoint (pTrans $ pScale p) spkrs) frqAtmos
 
 drawGrid :: (Int, Int) -> Float -> Picture
 drawGrid (hSize, vSize) spacing =
@@ -122,6 +91,15 @@ drawSpeaker sc s =
  where
   spk   = color (greyN 0.7) $ uncurry rectangleSolid $ size s
   frame = color black $ uncurry rectangleWire $ size s
+
+makePict :: PlotWorld -> Int -> IO Picture
+makePict w@PlotWorld { viewSize, showGrid, pixPerM, viewOrig, spkrs } r = pure
+  $ pictures [sim, speakers, grid]
+ where
+  sim  = uncurry makePicture viewSize r r (pointColor w)
+  grid = if showGrid then drawGrid viewSize pixPerM else Blank
+  speakers =
+    uncurry translate viewOrig $ pictures $ drawSpeaker pixPerM <$> spkrs
 
 eventHandler :: Event -> PlotWorld -> IO PlotWorld
 eventHandler e w@PlotWorld { pixPerM, showGrid, viewOrig } = case e of
@@ -149,11 +127,11 @@ eventHandler e w@PlotWorld { pixPerM, showGrid, viewOrig } = case e of
 bimap' :: Bifunctor p => (a -> d) -> p a a -> p d d
 bimap' f = bimap f f
 
-showPlot :: Int -> PlotWorld -> IO ()
-showPlot res w@PlotWorld { viewSize } = interactIO
-  (InWindow winName viewSize initalWinPos)
+showPlot :: String -> (Int, Int) -> Int -> PlotWorld -> IO ()
+showPlot name initalPos res w@PlotWorld { viewSize } = interactIO
+  (InWindow name viewSize initalPos)
   black
   w
-  (makePict res)
+  (`makePict` res)
   eventHandler
   (const $ return ())

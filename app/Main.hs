@@ -2,7 +2,7 @@
 
 module Main where
 
-import           Speakersim                     ( )
+import           Speakersim
 import           Plot
 import           Data.Aeson                     ( decode )
 import           Options.Applicative
@@ -33,6 +33,21 @@ parseOptions = info
   (options <**> helper)
   (fullDesc <> progDesc "Visualize speaker interaction" <> header "SpeakerPlot")
 
+defaultPlot :: PlotWorld
+defaultPlot = PlotWorld
+  { frqAtmos = FrqAtmos
+    { atmos = Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}
+    , freq  = 100.0
+    }
+  , spkrs    = [idealSpeaker]
+  , viewSize = (1000, 1000)
+  , viewOrig = (0, 0)
+  , pixPerM  = 20
+  , showGrid = True
+  , scaleMin = 60
+  , scaleMax = 100
+  }
+
 main :: IO ()
 main = do
   Options { optFile, optRes } <- execParser parseOptions
@@ -44,4 +59,4 @@ main = do
       case decode f of
         Nothing -> error $ "Error reading file: " ++ show fp
         Just w' -> return w'
-  showPlot optRes world
+  showPlot "Plot" (100, 100) optRes world
