@@ -33,8 +33,8 @@ parseOptions = info
   (options <**> helper)
   (fullDesc <> progDesc "Visualize speaker interaction" <> header "SpeakerPlot")
 
-defaultPlot :: PlotWorld
-defaultPlot = PlotWorld
+defaultPlot :: PlotState
+defaultPlot = PlotState
   { frqAtmos = FrqAtmos
     { atmos = Just Atmos {tmp = 20, hum = 0.5, pres = 101.325}
     , freq  = 100.0

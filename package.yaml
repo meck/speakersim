@@ -42,11 +42,12 @@ executables:
     ghc-options:
     - -threaded
     - -rtsopts
+    # - -O2
     - -with-rtsopts=-N
     - -Odph
-    - -fno-liberate-case 
-    - -funfolding-use-threshold1000 
-    - -funfolding-keeness-factor1000 
+    - -fno-liberate-case
+    - -funfolding-use-threshold1000
+    - -funfolding-keeness-factor1000
     # - -fllvm 
     # - -optlo-O3
     dependencies:
