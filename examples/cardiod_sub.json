@@ -44,5 +44,7 @@
     "viewSize": [
         1000,
         1000
-    ]
+    ],
+    "scaleMin": 60,
+    "scaleMax": 100
 }
